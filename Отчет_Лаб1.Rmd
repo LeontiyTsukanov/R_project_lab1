@@ -1,0 +1,298 @@
+---
+title: "Лабораторная работа №1"
+author: "Отчет Цуканова Леонтия Б20-902"
+date: "Варинант №9"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+```{r include = FALSE}
+library(openxlsx)
+library(EnvStats)
+
+Emission <- read.xlsx(xlsxFile = 'Книга5.xlsx')
+Info <- read.csv(file = 'Информация.csv', header = TRUE, sep = ';')
+Wind <- read.csv(file = 'Роза_ветров.csv', header = TRUE, sep = ';')
+
+carbon_dioxide <- Emission$Диоксид.углерода
+chlorine <- Emission$Хлор
+phosgene <- Emission$Фосген
+dioxin <- Emission$Диоксин
+ethylene_oxide <- Emission$Этиленоксид
+```
+
+## Задание и исходные данные
+
+Рассматривается модельная ситуация — существует предприятие обрабатывающей промышленности, чьи производственные процессы связаны с возможными выбросами вредных веществ.
+
+Поблизости от предприятия располагается поселок городского типа. Начиная с 2022 года, в соответствии с решением региональных органов исполнительной власти, в поселке будут установлены системы мониторинга состава воздуха.
+
+Предполагается, что вместе с установкой данных систем, в отношении организации будут ужесточены контрольные меры по случаям несоблюдения экологического законодательства. Т.к. других источников выбросов в атмосферу
+
+В целом у компании есть 2 варианта стратегии по уменьшению негативного влияния от усиления экологического контроля:
+
+1)	можно установить очистное оборудования и поддерживать их работу, что связано с определенными капитальными затратами, но позволит избежать штрафных санкций,
+2)	можно допустить возможность получения штрафов, если их накопленная сумма за 5 лет (срок службы очистного оборудования) будет меньше капитальных затрат на установку.
+
+Задача — на основе анализа известных статистических данных дать обоснованную рекомендацию, о выборе стратегии уменьшения негативного влияния.
+
+## Ход выполнения работы
+
+1)	Оценить совокупные затраты на реализацию первой стратегии (установка очистных сооружений)
+Затраты по каждому виду выбросов
+```{r, echo=FALSE}
+Info$'Затраты на обслуживание' <- Info$Стоимость.системы..тыс.руб. + Info$Стоимость.обслуживания..тыс.руб. * 5
+Info[6:8]
+```
+Совокупные затраты
+```{r}
+sum_cost <- sum(Info$`Затраты на обслуживание`)
+sum_cost
+```
+
+2)  Оценить степень близости распределений концентраций выбросов к известным теоритическим законам распределения.
+```{r, include=FALSE}
+# Тесты Диоксид углерода
+t1_cd <- ks.test(carbon_dioxide, pnorm, mean(carbon_dioxide), sd(carbon_dioxide))
+t2_cd <- ks.test(carbon_dioxide, pexp, 1/mean(carbon_dioxide))
+carbon_dioxide_eb <- (carbon_dioxide - min(carbon_dioxide))/ (max(carbon_dioxide) - min(carbon_dioxide))
+ebeta(carbon_dioxide_eb) # shape1 = 1.011240, shape2 = 1.901269 
+t3_cd <- ks.test(x = unique(carbon_dioxide_eb), y = 'pbeta', 
+        shape1 = ebeta(carbon_dioxide_eb)$parameters[1], 
+        shape2 = ebeta(carbon_dioxide_eb)$parameters[2] )
+t4_cd <- ks.test(x = unique(carbon_dioxide), y = 'pgamma',
+        shape = egamma(carbon_dioxide)$parameters[1],
+        scale = egamma(carbon_dioxide)$parameters[2])
+# Тесты Хлора
+t1_ch <- ks.test(chlorine, pnorm, mean(chlorine), sd(chlorine))
+t2_ch <- ks.test(chlorine, pexp, 1/mean(chlorine))
+chlorine_eb <- (chlorine - min(chlorine))/ (max(chlorine) - min(chlorine))
+ebeta(chlorine_eb) #    shape1 = 0.9802608, shape2 = 1.9032776 
+t3_ch <- ks.test(x = unique(chlorine_eb), y = 'pbeta', 
+        shape1 = ebeta(chlorine_eb)$parameters[1], 
+        shape2 = ebeta(chlorine_eb)$parameters[2] )
+t4_ch <- ks.test(x = unique(chlorine), y = 'pgamma',
+        shape = egamma(chlorine)$parameters[1],
+        scale = egamma(chlorine)$parameters[2])
+# Тесты Фосгена
+t1_ph <- ks.test(phosgene, pnorm, mean(phosgene), sd(phosgene))
+t2_ph <- ks.test(phosgene, pexp, 1/mean(phosgene))
+phosgene_eb <- (phosgene - min(phosgene))/ (max(phosgene) - min(phosgene))
+ebeta(phosgene_eb) #    shape1 = 0.9755343, shape2 = 1.9000893 
+t3_ph <- ks.test(x = unique(phosgene_eb), y = 'pbeta', 
+        shape1 = ebeta(phosgene_eb)$parameters[1], 
+        shape2 = ebeta(phosgene_eb)$parameters[2] )
+t4_ph <- ks.test(x = unique(phosgene), y = 'pgamma',
+        shape = egamma(phosgene)$parameters[1],
+        scale = egamma(phosgene)$parameters[2])
+# Тесты Диоксина 
+t1_di <- ks.test(dioxin, pnorm, mean(dioxin), sd(dioxin))
+t2_di <- ks.test(dioxin, pexp, 1/mean(dioxin))
+dioxin_eb <- (dioxin - min(dioxin))/ (max(dioxin) - min(dioxin))
+ebeta(dioxin_eb) #   shape1 = 1.012047, shape2 = 2.028017 
+t3_di <- ks.test(x = unique(dioxin_eb), y = 'pbeta', 
+        shape1 = ebeta(dioxin_eb)$parameters[1], 
+        shape2 = ebeta(dioxin_eb)$parameters[2] )
+t4_di <- ks.test(x = unique(dioxin), y = 'pgamma',
+        shape = egamma(dioxin)$parameters[1],
+        scale = egamma(dioxin)$parameters[2])
+# Тесты Этиленоксида
+t1_eo <- ks.test(ethylene_oxide, pnorm, mean(ethylene_oxide), sd(ethylene_oxide))
+t2_eo <- ks.test(ethylene_oxide, pexp, 1/mean(ethylene_oxide))
+ethylene_oxide_eb <- (ethylene_oxide - min(ethylene_oxide))/ (max(ethylene_oxide) - min(ethylene_oxide))
+ebeta(ethylene_oxide_eb) #    shape1 = 0.9774158, shape2 = 1.9256471
+t3_eo <- ks.test(x = unique(ethylene_oxide_eb), y = 'pbeta', 
+        shape1 = ebeta(ethylene_oxide_eb)$parameters[1], 
+        shape2 = ebeta(ethylene_oxide_eb)$parameters[2] )
+t4_eo <- ks.test(x = unique(ethylene_oxide), y = 'pgamma',
+        shape = egamma(ethylene_oxide)$parameters[1],
+        scale = egamma(ethylene_oxide)$parameters[2])
+
+# Функции плотности по каждому бета распредлению
+density_cd <- density(carbon_dioxide_eb)
+density_ch <- density(chlorine_eb)
+density_ph <- density(phosgene_eb)
+density_di <- density(dioxin_eb)
+density_eo <- density(ethylene_oxide_eb)
+```
+
+1. Оценки близости распределения диоксида углерода к теоретическим законам распределения:
+a) Нормальное распределение: p-value = `r t1_cd$p.value`, так как p-value < 0.5, то распредление не является нормальным
+b) Экспоненциальное распределение: p-value = `r t2_cd$p.value`, так как p-value < 0.5, то распредление не является экспоненциальное
+c) Бета-распредление: p-value = `r t3_cd$p.value`, так как p-value > 0.5, то это бета-распределение 
+d) Гамма-распределение: p-value = `r t4_cd$p.value`, так как p-value < 0.5, то это не гамма-распределение
+
+2. Оценки близости распределения хлора к теоретическим законам распределения:
+a) Нормальное распределение: p-value = `r t1_ch$p.value`, так как p-value < 0.5, то распредление не является нормальным
+b) Экспоненциальное распределение: p-value = `r t2_ch$p.value`, так как p-value < 0.5, то распредление не является экспоненциальное
+c) Бета-распредление: p-value = `r t3_ch$p.value`, так как p-value > 0.5, то это бета-распределение 
+d) Гамма-распределение: p-value = `r t4_ch$p.value`, так как p-value < 0.5, то это не гамма-распределение
+
+3. Оценки близости распределения фосгена к теоретическим законам распределения:
+a) Нормальное распределение: p-value = `r t1_ph$p.value`, так как p-value < 0.5, то распредление не является нормальным
+b) Экспоненциальное распределение: p-value = `r t2_ph$p.value`, так как p-value < 0.5, то распредление не является экспоненциальное
+c) Бета-распредление: p-value = `r t3_ph$p.value`, так как p-value > 0.5, то это бета-распределение 
+d) Гамма-распределение: p-value = `r t4_ph$p.value`, так как p-value < 0.5, то это не гамма-распределение
+
+4. Оценки близости распределения диоксина к теоретическим законам распределения:
+a) Нормальное распределение: p-value = `r t1_di$p.value`, так как p-value < 0.5, то распредление не является нормальным
+b) Экспоненциальное распределение: p-value = `r t2_di$p.value`, так как p-value < 0.5, то распредление не является экспоненциальное
+c) Бета-распредление: p-value = `r t3_di$p.value`, так как p-value > 0.5, то это бета-распределение 
+d) Гамма-распределение: p-value = `r t4_di$p.value`, так как p-value < 0.5, то это не гамма-распределение
+
+5. Оценки близости распределения этиленоксида к теоретическим законам распределения:
+a) Нормальное распределение: p-value = `r t1_eo$p.value`, так как p-value < 0.5, то распредление не является нормальным
+b) Экспоненциальное распределение: p-value = `r t2_eo$p.value`, так как p-value < 0.5, то распредление не является экспоненциальное
+c) Бета-распредление: p-value = `r t3_eo$p.value`, так как p-value > 0.5, то это бета-распределение 
+d) Гамма-распределение: p-value = `r t4_eo$p.value`, так как p-value < 0.5, то это не гамма-распределение
+
+1. Диоксид углерода
+```{r, echo=FALSE}
+hist(x = carbon_dioxide_eb, breaks = 'scott', freq = FALSE, col = 'lightblue', main = 'Диоксид углерода', xlab = 'Нормированное распр. диоксида углерода', ylab = 'Плотность')
+lines(x = sort(carbon_dioxide_eb), y = dbeta(x = sort(carbon_dioxide_eb), shape1 = 1.011240, 
+                                              shape2 = 1.901269), col = 'red')
+```
+2. Хлор
+```{r, echo=FALSE}
+hist(x = chlorine_eb, breaks = 'scott', freq = FALSE, col = 'lightblue', main = 'Хлор', xlab = 'Нормированное распр. хлора', ylab = 'Плотность')
+lines(x = sort(chlorine_eb), y = dbeta(x = sort(chlorine_eb),
+                                  shape1 = 0.9802608,
+                                  shape2 = 1.9032776), col = 'red')
+```
+3. Фосген
+```{r, echo=FALSE}
+hist(x = phosgene_eb, breaks = 'scott', freq = FALSE, col = 'lightblue', main = 'Фосген', xlab = 'Нормированное распр. фосгена', ylab = 'Плотность')
+lines(x = sort(phosgene_eb), y = dbeta(x = sort(phosgene_eb),
+                                  shape1 = 0.9755343,
+                                  shape2 = 1.9000893), col = 'red')
+```
+4. Диоксин 
+```{r, echo=FALSE}
+hist(x = dioxin_eb, breaks = 'scott', freq = FALSE, col = 'lightblue', main = 'Диоксин', xlab = 'Нормированное распр. диоксина', ylab = 'Плотность')
+lines(x = sort(dioxin_eb), y = dbeta(x = sort(dioxin_eb),
+                                  shape1 = 1.012047,
+                                  shape2 = 2.028017), col = 'red')
+```
+5. Этиленоксид
+```{r, echo=FALSE}
+hist(x = ethylene_oxide_eb, breaks = 'scott', freq = FALSE, col = 'lightblue', main = 'Этиленоксид', xlab = 'Нормированное распр. этиленоксида', ylab = 'Плотность')
+lines(x = sort(ethylene_oxide_eb), y = dbeta(x = sort(ethylene_oxide_eb),
+                                  shape1 = 0.9774158, 
+                                  shape2 = 1.9256471), col = 'red')
+```
+
+3)	В случае невозможности отнесения распределения к известным видам — сформировать эмпирическую функцию распределения
+
+Все распределения имеют теоретическое бета-распредление 
+
+4)	Оценить вероятность суточного штрафа каждого вида вредных веществ, при постоянном гипотетическом условии наиболее неблагоприятного ветра.
+```{r, include=FALSE}
+norm_emission <- data.frame('Диоксид углерода' = carbon_dioxide_eb,
+                            'Хлор' = chlorine_eb,
+                            'Фосген' = phosgene_eb,
+                            'Диоксин' = dioxin_eb,
+                            'Этиленоксид' = ethylene_oxide_eb)
+```
+
+```{r, include=FALSE}
+Info$normpdk <- numeric(length = 5)
+for (i in 1:5) {
+  Info[i, 9] <- (Info[i, 4] - min(Emission[, i + 1]))/(max(Emission[, i + 1]) - min(Emission[, i + 1]))
+}
+
+sh1 <- numeric(length = 5)
+sh2 <- numeric(length = 5)
+sh1[1] <- ebeta(carbon_dioxide_eb * 0.9)$parameters[1]
+sh1[2] <- ebeta(chlorine_eb * 0.9)$parameters[1]
+sh1[3] <- ebeta(phosgene_eb* 0.9)$parameters[1]
+sh1[4] <- ebeta(dioxin_eb* 0.9)$parameters[1]
+sh1[5] <- ebeta(ethylene_oxide_eb* 0.9)$parameters[1]
+
+sh2[1] <- ebeta(carbon_dioxide_eb* 0.9)$parameters[2]
+sh2[2] <- ebeta(chlorine_eb* 0.9)$parameters[2]
+sh2[3] <- ebeta(phosgene_eb* 0.9)$parameters[2]
+sh2[4] <- ebeta(dioxin_eb* 0.9)$parameters[2]
+sh2[5] <- ebeta(ethylene_oxide_eb* 0.9)$parameters[2]
+
+```
+
+```{r}
+prob_teor <- numeric(length = 5)
+for (i in 1:5) {
+  prob_teor[i] <- 1 - pbeta(Info[i, 9], sh1[i], sh2[i])
+}
+
+Info$'Вероятность суточного штрафа' <- round(prob_teor, 3)
+Info[, 10]
+```
+
+5)	Рассчитать совокупный штраф при данном условии
+```{r}
+penalty <- numeric(length = 5)
+for (i in 1:5) {
+  penalty[i] <- round(5 * 365 * Info[i, 10] * Info[i, 5])
+}
+Info$'Штраф при самом неблагоприятном ветре' <- penalty
+```
+6)	Отсеять такие вещества, для которых совокупный штраф заведомо меньше капитальных затрат
+
+```{r, echo=FALSE}
+df1 <- data.frame('Вещество' = Info$Вещество, 'Штраф при самом неблагоприятном ветре' = Info$'Штраф при самом неблагоприятном ветре', 'Затраты на обслуживание'  = Info$`Затраты на обслуживание`)
+df1[1:3]
+```
+
+Только у диоксида углерода штраф больше, чем затраты на обслуживание 
+
+7)	Для оставшихся веществ — составить формулу полной вероятности получения штрафа при условии разной интенсивности разных направлений ветров
+
+```{r, include=FALSE}
+Wind$'Оценка эффективности' <- c(0, 0, 0.25, 0.5, 0.9, 0.75, 0.4, 0.1)
+```
+
+```{r warning=FALSE}
+prob_penalty <- numeric(length =  5)
+for (i in 1:5) {
+  prob_teority <- 0
+  for (j in 3:8) {
+    sh_1 <- ebeta(norm_emission[, i] * Wind[j, 3])$parameters[1]
+    sh_2 <- ebeta(norm_emission[, i] * Wind[j, 3])$parameters[2]
+    prob_t <- 1 - pbeta(Info[i, 9], sh_1, sh_2)
+    prob_teority <-  prob_teority + prob_t * Wind[j, 2] / 365
+ }
+  prob_penalty[i] <- round(prob_teority, 3)
+}
+prob_penalty
+```
+
+8) Рассчитать совокупный штраф по полной вероятности
+
+```{r}
+Info$'Вероятность суточного штрафа с учетом ветра' <- prob_penalty
+Info$'Совокупная стоимость штрафов за 5 лет' <- prob_penalty * Info$Штраф..тыс.руб * 365 * 5 
+total_penalty <- sum(prob_penalty * Info$Штраф..тыс.руб * 365 * 5)
+```
+
+9)	Сопоставить капитальные затраты и совокупный вероятностный штраф 
+
+```{r, echo=FALSE}
+df2 <- data.frame('Вещество' = Info$Вещество, 'Капитальные затраты' = Info$`Затраты на обслуживание`,
+                  'Вероятностный штраф' = Info$`Совокупная стоимость штрафов за 5 лет`)
+df2
+```
+
+10)	Сделать вывод о стратегии по каждому типу вредных веществ
+
+```{r, echo=FALSE}
+res <- numeric(length = 5)
+for (i in 1:5) {
+  res[i] <- ifelse(Info[i, 13] > Info[i, 8], 'Необходимо устнавливать очистное оборудование',  'Выгоднее оплачивать штрфы')
+}
+df3 <- data.frame('Вещество' = Info$Вещество, 'Вывод' = res)
+df3
+```
+
+
+
+
